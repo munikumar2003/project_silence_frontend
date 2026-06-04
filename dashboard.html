@@ -435,7 +435,7 @@ h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;le
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const API = 'https://project-silence-949261620654.asia-south1.run.app/';
+const API = 'http://localhost:8080/';//https://project-silence-949261620654.asia-south1.run.app/
 const TOPBAR_TITLES = {upload:'Upload & Configure',overview:'Audit Overview',data:'Dataset Bias',model:'Model Bias',mit:'Mitigation Strategies',report:'Audit Report'};
 
 // ═══════════════════════════════════════════════════════════
@@ -949,16 +949,22 @@ function renderMitPage(){if(S.mitResult)renderMitResults(S.mitResult);}
 
 function renderMitResults(data){
   const best=data.recommended_strategy, mits=data.mitigation_results;
-  const NAMES={reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment'};
+  const NAMES={smote: 'Pre-Processing: SMOTE', reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment', cost_sensitive:'In-Processing: Cost-Sensitive Learning', calibrated_equal_odds:'Post-Processing: Calibrated Equal Odds'};
   const DESCS={
+    smote:'Generates synthetic examples for underrepresented groups to balance the dataset.',
     reweighting:'Assigns higher training weights to underrepresented/disadvantaged groups, forcing the model to learn better representations for all demographics.',
     resampling:'Oversamples disadvantaged groups in the training set until each demographic is equally represented — the model learns from equal examples.',
     threshold_adjustment:'Lowers the decision threshold for disadvantaged groups post-training, equalising positive prediction rates across demographics.',
+    cost_sensitive:'Adjusts the model\'s learning process to account for the different costs associated with misclassifying examples from various demographics.',
+    calibrated_equal_odds:'Adjusts the model\'s predictions to ensure equal opportunity across different demographic groups.'
   };
   const WHEN={
+    smote:'Best when: you have a small number of examples for underrepresented groups.',
     reweighting:'Best when: data imbalance is the primary cause of bias.',
     resampling:'Best when: small minority groups need more training examples.',
     threshold_adjustment:'Best when: you need a quick fix without retraining, or the model is an external upload.',
+    cost_sensitive:'Best when: you want to incorporate fairness considerations directly into the model training process.',
+    calibrated_equal_odds:'Best when: you need to ensure equal opportunity across different demographic groups.'
   };
 
   let html='';
