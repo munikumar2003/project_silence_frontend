@@ -41,6 +41,10 @@ body{font-family:'Outfit',sans-serif;background:var(--fog);color:var(--ink);min-
 .sb-foot{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
 .sb-status{font-size:11px;color:rgba(255,255,255,.3);line-height:1.7}
 .sb-status strong{color:rgba(255,255,255,.6);font-weight:500}
+.sb-progress{margin-top:14px}
+.sb-progress-bar{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);border-radius:999px;height:8px;overflow:hidden}
+.sb-progress-fill{height:100%;background:linear-gradient(90deg, rgba(255,77,109,1), rgba(255,143,163,1));width:0;transition:width .25s ease}
+.sb-progress-label{font-size:10px;color:rgba(255,255,255,.65);margin-top:6px;display:block}
 /* ─── MAIN ──────────────────────────────────────────────────── */
 .main{flex:1;overflow:auto}
 .topbar{padding:20px 36px;background:var(--white);border-bottom:1px solid #E5E9F0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
@@ -190,6 +194,12 @@ h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;le
   <div class="sb-foot">
     <div class="sb-status" id="sb-stat">
       <strong>Status:</strong> No dataset loaded
+    </div>
+    <div class="sb-progress" id="sb-progress" style="display:none">
+      <div class="sb-progress-bar">
+        <div class="sb-progress-fill" id="sb-progress-fill"></div>
+      </div>
+      <span class="sb-progress-label" id="sb-progress-label"></span>
     </div>
   </div>
 </nav>
@@ -670,6 +680,7 @@ async function runAudit(){
 
   setBtnL('run-btn','run-txt','Running audit…');
   setStep(3); setStat('Running Steps 1–3…');
+  startProgress('Running audit and computing SHAP values…');
 
   try{
     const data=await POST('/api/audit',{
@@ -680,11 +691,13 @@ async function runAudit(){
     });
     S.auditResult=data;
     setStep(4);
+    completeProgress('Audit + SHAP complete');
     const lvl=data.summary.risk_level;
     const score=data.summary.risk_score;
     setStat(`<strong>${S.orgName}</strong> · Risk: <strong>${lvl}</strong> (${score}/100)`);
     go('overview');
   }catch(err){
+    resetProgress();
     showErr('run-err',`<strong>Audit failed:</strong> ${err.message}`);
     setStep(2);
   }finally{ resetBtn('run-btn','run-txt','🔍 Run Full Audit'); }
@@ -1082,7 +1095,7 @@ function renderMitPage(){if(S.mitResult)renderMitResults(S.mitResult);}
 
 function renderMitResults(data){
   const best=data.recommended_strategy, mits=data.mitigation_results;
-  const NAMES={smote: 'Pre-Processing: SMOTE', reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment', cost_sensitive:'In-Processing: Cost-Sensitive Learning', calibration:'Post-Processing: Calibrated Equal Odds'};
+  const NAMES={reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment',smote: 'Pre-Processing: SMOTE', cost_sensitive:'In-Processing: Cost-Sensitive Learning', calibration:'Post-Processing: Calibrated Equal Odds'};
   const DESCS={
     smote:'Generates synthetic examples for underrepresented groups to balance the dataset.',
     reweighting:'Assigns higher training weights to underrepresented/disadvantaged groups, forcing the model to learn better representations for all demographics.',
@@ -1222,6 +1235,51 @@ function renderReport(){
         <a href="${API}/api/report/${S.sid}" target="_blank" class="btn btn-green" style="text-decoration:none">⬇ Download PDF</a>
       </div>
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRESS HELPERS
+// ═══════════════════════════════════════════════════════════
+let progressTimer = null;
+function startProgress(label){
+  const box=document.getElementById('sb-progress');
+  const fill=document.getElementById('sb-progress-fill');
+  const lbl=document.getElementById('sb-progress-label');
+  if(!box||!fill||!lbl) return;
+  box.style.display='block';
+  lbl.textContent=label;
+  fill.style.width='3%';
+  fill.dataset.p='3';
+  clearInterval(progressTimer);
+  progressTimer=setInterval(()=>{
+    let p=parseFloat(fill.dataset.p||'3');
+    if(p<85){p += Math.random()*3 + 0.7;} else if(p<96){p += Math.random()*0.6 + 0.1;} else {p = 96;}
+    if(p>96) p=96;
+    fill.dataset.p = p.toFixed(2);
+    fill.style.width = p.toFixed(2)+'%';
+  }, 600);
+}
+function completeProgress(label){
+  const box=document.getElementById('sb-progress');
+  const fill=document.getElementById('sb-progress-fill');
+  const lbl=document.getElementById('sb-progress-label');
+  if(!box||!fill||!lbl) return;
+  clearInterval(progressTimer);
+  fill.style.width='100%';
+  fill.dataset.p='100';
+  lbl.textContent=label||'Complete';
+  setTimeout(()=>{box.style.display='none';}, 700);
+}
+function resetProgress(){
+  clearInterval(progressTimer);
+  const box=document.getElementById('sb-progress');
+  const fill=document.getElementById('sb-progress-fill');
+  const lbl=document.getElementById('sb-progress-label');
+  if(!box||!fill||!lbl) return;
+  fill.style.width='0';
+  fill.dataset.p='0';
+  lbl.textContent='';
+  box.style.display='none';
 }
 
 // ═══════════════════════════════════════════════════════════
