@@ -956,7 +956,7 @@ function renderMitResults(data){
     resampling:'Oversamples disadvantaged groups in the training set until each demographic is equally represented — the model learns from equal examples.',
     threshold_adjustment:'Lowers the decision threshold for disadvantaged groups post-training, equalising positive prediction rates across demographics.',
     cost_sensitive:'Adjusts the model\'s learning process to account for the different costs associated with misclassifying examples from various demographics.',
-    calibrated_equal_odds:'Adjusts the model\'s predictions to ensure equal opportunity across different demographic groups.'
+    calibration:'Adjusts the model\'s predictions to ensure equal opportunity across different demographic groups.'
   };
   const WHEN={
     smote:'Best when: you have a small number of examples for underrepresented groups.',
@@ -964,7 +964,7 @@ function renderMitResults(data){
     resampling:'Best when: small minority groups need more training examples.',
     threshold_adjustment:'Best when: you need a quick fix without retraining, or the model is an external upload.',
     cost_sensitive:'Best when: you want to incorporate fairness considerations directly into the model training process.',
-    calibrated_equal_odds:'Best when: you need to ensure equal opportunity across different demographic groups.'
+    calibration:'Best when: you need to ensure equal opportunity across different demographic groups.'
   };
 
   let html='';
