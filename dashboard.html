@@ -683,7 +683,7 @@ async function runAudit(){
 async function runMit(){
   if(!S.auditResult)return;
   setBtnL('mit-btn','mit-txt','Running…');
-  document.getElementById('mit-body').innerHTML=`<div class="alert info"><span class="spin">⟳</span> Running 3 bias mitigation strategies on the server…</div>`;
+  document.getElementById('mit-body').innerHTML=`<div class="alert info"><span class="spin">⟳</span> Running 6 bias mitigation strategies on the server…</div>`;
   try{
     const d=await POST('/api/mitigate',{session_id:S.sid});
     S.mitResult=d; renderMitResults(d);
