@@ -949,7 +949,7 @@ function renderMitPage(){if(S.mitResult)renderMitResults(S.mitResult);}
 
 function renderMitResults(data){
   const best=data.recommended_strategy, mits=data.mitigation_results;
-  const NAMES={smote: 'Pre-Processing: SMOTE', reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment', cost_sensitive:'In-Processing: Cost-Sensitive Learning', calibrated_equal_odds:'Post-Processing: Calibrated Equal Odds'};
+  const NAMES={smote: 'Pre-Processing: SMOTE', reweighting:'Pre-Processing: Reweighting',resampling:'Pre-Processing: Resampling',threshold_adjustment:'Post-Processing: Threshold Adjustment', cost_sensitive:'In-Processing: Cost-Sensitive Learning', calibration:'Post-Processing: Calibrated Equal Odds'};
   const DESCS={
     smote:'Generates synthetic examples for underrepresented groups to balance the dataset.',
     reweighting:'Assigns higher training weights to underrepresented/disadvantaged groups, forcing the model to learn better representations for all demographics.',
