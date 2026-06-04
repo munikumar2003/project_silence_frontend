@@ -698,7 +698,7 @@ async function runAudit(){
     go('overview');
   }catch(err){
     resetProgress();
-    showErr('run-err',`<strong>Audit failed:</strong> ${err.message}`);
+    showErr('run-err',`<strong>Audit failed:</strong> ${err}`);
     setStep(2);
   }finally{ resetBtn('run-btn','run-txt','🔍 Run Full Audit'); }
 }
