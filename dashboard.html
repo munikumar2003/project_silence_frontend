@@ -183,6 +183,7 @@ h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;le
     <button class="nb"    id="nb-overview" onclick="go('overview')"><span class="nb-icon">🏠</span>Overview<span class="nb-dot"></span></button>
     <button class="nb"    id="nb-data"     onclick="go('data')"><span class="nb-icon">📊</span>Data Bias<span class="nb-dot"></span></button>
     <button class="nb"    id="nb-model"    onclick="go('model')"><span class="nb-icon">🤖</span>Model Bias<span class="nb-dot"></span></button>
+    <button class="nb"    id="nb-shap"     onclick="go('shap')"><span class="nb-icon">🔍</span>SHAP Explanations<span class="nb-dot"></span></button>
     <button class="nb"    id="nb-mit"      onclick="go('mit')"><span class="nb-icon">🛠</span>Mitigation<span class="nb-dot"></span></button>
     <button class="nb"    id="nb-report"   onclick="go('report')"><span class="nb-icon">📄</span>Report<span class="nb-dot"></span></button>
   </div>
@@ -406,6 +407,17 @@ h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;le
   <div id="model-body"></div>
 </div>
 
+<!-- ════ PAGE: SHAP EXPLANATIONS ═════════════════════════════════ -->
+<div id="pg-shap" class="page" style="display:none">
+  <div class="sec-head">
+    <div>
+      <h1>Individual Fairness Explanations (SHAP)</h1>
+      <p style="font-size:13px;color:var(--slate);margin-top:4px;max-width:600px">Understand <em>why</em> individual predictions are unfair. Which features drive discriminatory decisions? Are protected attributes or proxies being used?</p>
+    </div>
+  </div>
+  <div id="shap-body"></div>
+</div>
+
 <!-- ════ PAGE: MITIGATION ════════════════════════════════════════ -->
 <div id="pg-mit" class="page" style="display:none">
   <div class="sec-head">
@@ -436,7 +448,7 @@ h3{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;le
 // CONFIG
 // ═══════════════════════════════════════════════════════════
 const API = 'http://localhost:8080/';//https://project-silence-949261620654.asia-south1.run.app/
-const TOPBAR_TITLES = {upload:'Upload & Configure',overview:'Audit Overview',data:'Dataset Bias',model:'Model Bias',mit:'Mitigation Strategies',report:'Audit Report'};
+const TOPBAR_TITLES = {upload:'Upload & Configure',overview:'Audit Overview',data:'Dataset Bias',model:'Model Bias',shap:'Individual Fairness (SHAP)',mit:'Mitigation Strategies',report:'Audit Report'};
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -477,7 +489,7 @@ async function UPLOAD(path,fd) { const r=await fetch(API+path,{method:'POST',bod
 // ═══════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
-const PAGES=['upload','overview','data','model','mit','report'];
+const PAGES=['upload','overview','data','model','shap','mit','report'];
 function go(p){
   PAGES.forEach(id=>{
     document.getElementById('pg-'+id).style.display = id===p?'block':'none';
@@ -487,6 +499,7 @@ function go(p){
   if(p==='overview'&&S.auditResult) renderOverview();
   if(p==='data'    &&S.auditResult) renderDataBias();
   if(p==='model'   &&S.auditResult) renderModelBias();
+  if(p==='shap'    &&S.auditResult) renderShap();
   if(p==='mit'     &&S.auditResult) renderMitPage();
   if(p==='report'  &&S.auditResult) renderReport();
 }
@@ -940,6 +953,126 @@ function buildModelCard(col,r){
     </div>
     ${flags?`<h3>Flags raised (${(r.flags||[]).length})</h3>${flags}`:''}`;
   return card;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: SHAP EXPLANATIONS
+// ═══════════════════════════════════════════════════════════
+function renderShap(){
+  const el=document.getElementById('shap-body');
+  el.innerHTML='<div class="alert info">Loading SHAP explanations…</div>';
+  
+  if(!S.auditResult.shap_explanations){
+    el.innerHTML='<div class="alert warn">SHAP explanations not available in audit results. Run audit first.</div>';
+    return;
+  }
+  
+  const shap=S.auditResult.shap_explanations;
+  
+  if(shap.error){
+    el.innerHTML=`<div class="alert warn">
+      <strong>SHAP analysis unavailable:</strong> ${shap.error}<br>
+      To enable SHAP explanations, install: <code style="font-family:monospace">pip install shap>=0.42.0</code>
+    </div>`;
+    return;
+  }
+  
+  let html='';
+  
+  // Group-level analysis
+  const groupAnal=shap.group_analysis||{};
+  Object.entries(groupAnal).forEach(([grp,analysis])=>{
+    const topFeats=analysis.top_features||[];
+    const topMisclass=analysis.top_misclass_features||[];
+    const misclassRate=(analysis.misclassification_rate*100).toFixed(1);
+    
+    const topFeatRows=topFeats.map(([feat,shap_val])=>`
+      <tr><td><strong>${feat}</strong></td><td style="font-family:'DM Mono',monospace">${shap_val.toFixed(4)}</td></tr>`).join('');
+    
+    const misclassFeatRows=topMisclass.map(([feat,shap_val])=>`
+      <tr><td><strong>${feat}</strong></td><td style="font-family:'DM Mono',monospace">${shap_val.toFixed(4)}</td></tr>`).join('');
+    
+    const severity=misclassRate>30?'high':misclassRate>10?'medium':'low';
+    const icon={high:'⚠',medium:'●',low:'✓'}[severity]||'●';
+    
+    html+=`
+      <div class="card" style="border-left:4px solid ${severity==='high'?'var(--red)':severity==='medium'?'var(--amber)':'var(--green)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0;font-family:'DM Serif Display',serif">Group: <em>${grp}</em></h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:14px">${icon}</span>
+            <span style="font-size:12px;color:var(--slate)"><strong>${analysis.n_samples}</strong> samples</span>
+          </div>
+        </div>
+        
+        <div class="g2" style="margin-bottom:0">
+          <div>
+            <h3>Top features driving predictions</h3>
+            <table class="tbl">
+              <thead><tr><th>Feature</th><th>SHAP Impact</th></tr></thead>
+              <tbody>${topFeatRows||'<tr><td colspan="2" style="color:var(--slate);text-align:center">No features</td></tr>'}</tbody>
+            </table>
+          </div>
+          <div>
+            <h3>Most influential features in errors (${analysis.n_misclassified} misclassified)</h3>
+            <div style="margin-bottom:8px;font-size:12px;color:var(--slate)">
+              <strong>Error rate:</strong> <span style="font-weight:700;color:${severity==='high'?'var(--red)':severity==='medium'?'var(--amber)':'var(--green)'}">${misclassRate}%</span>
+            </div>
+            ${misclassFeatRows?`
+            <table class="tbl">
+              <thead><tr><th>Feature</th><th>SHAP Impact</th></tr></thead>
+              <tbody>${misclassFeatRows}</tbody>
+            </table>`:'<div style="color:var(--slate);font-size:13px">No misclassifications detected</div>'}
+          </div>
+        </div>
+      </div>`;
+  });
+  
+  // Fairness insights
+  const insights=shap.fairness_insights||[];
+  if(insights.length>0){
+    html+=`<div class="card"><h3>Fairness Insights from Feature Analysis</h3>`;
+    insights.forEach(insight=>{
+      const cls={HIGH:'high',MEDIUM:'medium',INFO:'info'}[insight.severity]||'info';
+      const icon={HIGH:'⚠',MEDIUM:'●',INFO:'ℹ'}[insight.severity]||'ℹ';
+      html+=`<div class="flag ${cls}"><span class="flag-icon">${icon}</span><div><strong>[${insight.type}]</strong> ${insight.message}</div></div>`;
+    });
+    html+=`</div>`;
+  }
+  
+  // Unfair cases
+  const unfairCases=shap.unfair_cases||{};
+  if(Object.keys(unfairCases).length>0){
+    html+=`<div class="card"><h3>Most Problematic Individual Predictions</h3>
+      <p style="font-size:12px;color:var(--slate);margin-bottom:14px">These are the cases where the model made decisions with highest uncertainty and strongest feature influences—most likely to be questioned in an audit.</p>`;
+    
+    Object.entries(unfairCases).forEach(([grp,cases])=>{
+      if(!cases || cases.length===0) return;
+      html+=`<div style="margin-bottom:14px;padding:12px;background:var(--fog);border-radius:var(--radius)">
+        <h4 style="margin:0 0 10px 0;color:var(--ink);font-size:13px;font-weight:600">Group: <strong>${grp}</strong></h4>`;
+      
+      cases.slice(0,3).forEach((c,idx)=>{
+        const correct=c.correct?'✓ Correct':'✗ Error';
+        const correctColor=c.correct?'var(--green)':'var(--red)';
+        const topFeatsStr=c.top_contributing_features.map(([f,v])=>`${f} (${v.toFixed(3)})`).join(', ');
+        
+        html+=`
+        <div style="margin-bottom:10px;padding:9px;background:var(--white);border-left:2px solid ${correctColor};border-radius:6px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span><strong>Case ${idx+1}:</strong> Row #${c.row_index}</span>
+            <span style="color:${correctColor};font-weight:600">${correct}</span>
+          </div>
+          <div style="color:var(--slate);margin-bottom:3px"><strong>Prediction:</strong> ${c.prediction===1?'Approved':'Denied'} | <strong>Truth:</strong> ${c.ground_truth===1?'Approved':'Denied'}</div>
+          <div style="color:var(--slate);font-size:11px"><strong>Top features:</strong> ${topFeatsStr}</div>
+        </div>`;
+      });
+      
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  }
+  
+  el.innerHTML=html||'<div class="alert warn">No SHAP analysis data available.</div>';
 }
 
 // ═══════════════════════════════════════════════════════════
